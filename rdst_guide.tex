@@ -13,6 +13,7 @@
 }
 \usepackage{xcolor}
 \usepackage[framemethod=TikZ]{mdframed}
+\mdfsetup{nobreak=true}
 \usepackage{fullpage}
 \definecolor{light-gray}{gray}{0.95} %the shade of grey that stack exchange uses
 \begin{document}
@@ -21,14 +22,14 @@
 \begin{abstract}
 This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
 \end{abstract}
-\section{Software}
+\chapter{Software}
 The R(D*) analysis software consists of three repositories:
 \begin{enumerate}
 \item \href{https://github.com/alatorre-caltech/BPH\_RD\_Analysis}{BPH\_RD\_Analysis}
 \item \href{https://github.com/alatorre-caltech/BPH\_RDntuplizer}{BPH\_RDntuplizer}
 \item \href{https://github.com/alatorre-caltech/BPH\_CMSMCGen}{BPH\_CMSMCGen}
 \end{enumerate}
-\subsection{Getting Started}
+\section{Getting Started}
 Before running any of the software it is necessary to set up your environment.
 These instructions will assume you are running things on the Caltech Tier2
 login nodes, but the instructions should be similar for any computer.
@@ -83,6 +84,7 @@ Singularity> # Now, we get out of the container and set up a final environment f
 Singularity> # don't need to run anything platform specific
 Singularity> exit
 $ cd ~/RDstAnalysis
+$ source /cvmfs/cms.cern.ch/cmsset_default.sh
 $ export SCRAM_ARCH=cc8_amd64_gcc9
 $ cmsrel CMSSW_11_2_0
 \end{lstlisting}
@@ -90,7 +92,7 @@ $ cmsrel CMSSW_11_2_0
 It is important to use the exact same directory structure since this is assumed
 in much of the code.
 
-First, we are going to add some basic stuff to our .bashrc so that we have
+Next, we are going to add some basic stuff to our .bashrc so that we have
 access to the CMS programs, etc. every time we log in. To do so add the
 following to your .bashrc when you log in:
 
@@ -123,9 +125,51 @@ fi
 \end{lstlisting}
 \end{mdframed}
 
-\subsubsection{Installing the ntuplizer}
+\subsection{Installing the ntuplizer}
+Next, we will install the ntuplizer:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ cmssw-cc7
+Singularity> cd ~/RDstAnalysis/CMSSW_10_2_3/src
+Singularity> cmsenv
+Singularity> mkdir ntuplizer
+Singularity> cd ntuplizer
+Singularity> wget https://hammer.physics.lbl.gov/Hammer-1.2.1-Source.tar.gz
+Singularity> tar -xzf Hammer-1.2.1-Source.tar.gz
+Singularity> mkdir Hammer-build
+Singularity> cd Hammer-build
+Singularity> export PATH=/cvmfs/sft.cern.ch/lcg/contrib/CMake/3.14.2/Linux-x86_64/bin:${PATH}
+Singularity> export BOOST_ROOT=/cvmfs/sft.cern.ch/lcg/releases/Boost/1.66.0-f50b5/x86_64-centos7-gcc7-opt/
+Singularity> export HEPMC_DIR=/cvmfs/sft.cern.ch/lcg/external/HepMC/2.06.08/x86_64-slc6-gcc48-opt
+Singularity> cmake -DCMAKE_INSTALL_PREFIX=../Hammer-install -DENABLE_TESTS=ON -DWITH_ROOT=OFF -DWITH_EXAMPLES=OFF -DINSTALL_EXTERNAL_DEPENDENCIES=ON -DWITH_PYTHON=OFF -DBUILD_SHARED_LIBS=ON -DFORCE_YAMLCPP_INSTALL=ON -DCMAKE_CXX_FLAGS="-pthread" -DBOOST_ROOT=/cvmfs/sft.cern.ch/lcg/releases/Boost/1.64.0-0809c/x86_64-centos7-gcc7-opt/ ../Hammer-1.2.1-Source
+\end{lstlisting}
+\end{mdframed}
+Next, change line 79 (FIXME: is it still line 79? has this been fixed upstream yet?) of \texttt{Hammer-1.2.1-Source/src/Amplitudes/AmplBDstarDPiLepNu.cc} from \texttt{const FourMomentum\& pPion = daughters[4].momentum();} to \texttt{const FourMomentum\& pPion = pDstarmes - pDmes;}. Then continue to compilation:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+Singularity> make -j24; make install -j24
+Singularity> cd $CMSSW_BASE/lib/slc7_amd64_gcc700
+Singularity> cp ../../src/ntuplizer/Hammer-install/lib64/*.so.* ./
+Singularity> cp ../../src/ntuplizer/Hammer-install/lib64/Hammer/*.so.* ./
+Singularity> cd $CMSSW_BASE/src/ntuplizer/Hammer-build
+Singularity> ctest -V
+Singularity> cd ..
+Singularity> rm -rf Hammer-1.2.1-Source.tar.gz Hammer-build
+\end{lstlisting}
+\end{mdframed}
+Now, we can get the ntuplizer code and compile it:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+Singularity> cd ~/RDstAnalysis/CMSSW_10_2_3/src/ntuplizer
+Singularity> git clone https://github.com/alatorre-caltech/BPH_RDntuplizer.git
+Singularity> cd BPH_RDntuplizer
+Singularity> scram b -j12
+\end{lstlisting}
+\end{mdframed}
 
-\subsection{BPH\_RD\_Analysis}
+You can find more instructions on running the ntuplizer in the README at \url{https://github.com/alatorre-caltech/BPH_RDntuplizer}.
+
+\section{BPH\_RD\_Analysis}
 The BPH\_RD\_Analysis contains the following scripts:
 \begin{itemize}
 \item B2DstMu\_skimCAND\_v1.py which converts the ntuples for the normal B -> D* mu nu analysis into ``skimmed'' data files which are used as input to the final fit
@@ -135,7 +179,7 @@ The BPH\_RD\_Analysis contains the following scripts:
 \item kinematicCalibration\_Bd\_JpsiKst.py is used to compute the corrections for the B pT and extra track pT, etc. from the calibration sample
 \item forcedDecayChannelsFactors\_v2.ipynb is used to calculate the normalization of the branching ratios for each sample based on what decays were forced in the MC card
 \end{itemize}
-\subsubsection{Running the Skimmer}
+\subsection{Running the Skimmer}
 To produce ``skimmed'' data files from the ntuples, you can run:
 \begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
 \begin{lstlisting}
@@ -152,7 +196,7 @@ $ python B2JpsiKst_skimCAND_v1.py -d '.*' --cat mid
 $ python B2JpsiKst_skimCAND_v1.py -d '.*' --cat high
 \end{lstlisting}
 \end{mdframed}
-\subsubsection{Computing the Trigger Efficiency}
+\subsection{Computing the Trigger Efficiency}
 To compute the trigger efficiencies for data and MC you can run:
 \begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
 \begin{lstlisting}
@@ -161,7 +205,7 @@ $ for t in "Mu7_IP4" "Mu9_IP6" "Mu12_IP6"; do ./triggerEfficiencies.py -v [versi
 $ for t in "Mu7_IP4" "Mu9_IP6" "Mu12_IP6"; do ./triggerEfficienciesScaleFactors.py -v [version] -t $t --refIP BS; done
 \end{lstlisting}
 \end{mdframed}
-\subsubsection{Editing IPython Notebooks}
+\subsection{Editing IPython Notebooks}
 To edit ipython notebooks from a remote server like login-2, it is necessary to do some port forwarding. Here is how I do it (for example: to modify forcedDecayChannelsFactors\_v2.ipynb).
 \begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
 \begin{lstlisting}
@@ -178,5 +222,34 @@ $ ssh ssh -NL 1234:localhost:1234 login-2.hep.caltech.edu
 \end{mdframed}
 Then you should be able to visit the link that the jupyter notebook gives you
 on your local machine.
-\subsection{BPH\_RDntuplizer}
+\section{BPH\_RDntuplizer}
+\chapter{Current Problems}
+\section{Covariance Matrices}
+We discovered that the covariance matrices for all the tracks making up both
+the secondary tracks from the B decay and the primary vertex tracks do not
+agree between data and MC. In particular, the matrix element representing the
+impact parameter error was \emph{very} different between data and MC, but many
+of the other matrix elements also had different distributions.
+
+We gave a short talk to the tracking POG about the impact parameter matrix
+element specifically and were told it was a known bug that the data error was
+overestimated. Therefore, to correct for that specific bug we simply add an
+overall offset to the impact parameter error for MC. You can see that here:
+\url{https://github.com/alatorre-caltech/BPH_RDntuplizer/blob/0d97cbf02a59de63b8b56fbe52935ad7264286f5/plugins/VtxUtils.cc#L221}.
+
+We are also currently correcting two more matrix elements by simply applying an
+offset to the MC matrix elements. However, it needs to be stressed that we do
+not understand the origin of these differences and some of the differences
+between data and MC for these have a complex structure (eta dependence).
+
+These covariance matrix elements are extremely important for both the secondary track fits and for the primary vertex fit. They are important for the secondary track fits because the entire analysis relies on fitting these tracks within the CMSSW framework which uses the covariance matrix when fitting multiple tracks. Similarly, the primary vertex resolution is important as it is used to compute the B direction when computing all of the final observables (missing mass, etc.).
+
+Fundamentally, I believe the current approach of trying to fix these issues
+after the fact by applying corrections at the analysis level is wrong. Whatever
+is causing these issues in the other matrix elements represents some
+fundamental mismodelling of the detector in the Monte Carlo and because of the
+complex nature of how these variables enter the analysis (through complex fits
+of tracks) and so should be fixed at the simulation level and not papered over
+after the fact.
+
 \end{document}
