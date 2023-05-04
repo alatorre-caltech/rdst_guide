@@ -22,6 +22,15 @@
 \begin{abstract}
 This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
 \end{abstract}
+\chapter{Introduction}
+This document is intended to give a brief overview of the technical details of
+the software and some current problems with the R(D*) analysis. Before diving
+in, you should read the following documents to help you get a better idea of
+the overall analysis strategy:
+\begin{itemize}
+\item Analysis Note: \url{https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2019/162}
+\item Olmo's Thesis: \url{https://thesis.library.caltech.edu/15019/1/olmo_cerri_2023_thesis.pdf}
+\end{itemize}
 \chapter{Software}
 The R(D*) analysis software consists of three repositories:
 \begin{enumerate}
@@ -240,9 +249,23 @@ overall offset to the impact parameter error for MC. You can see that here:
 We are also currently correcting two more matrix elements by simply applying an
 offset to the MC matrix elements. However, it needs to be stressed that we do
 not understand the origin of these differences and some of the differences
-between data and MC for these have a complex structure (eta dependence).
+between data and MC for these have a complex structure (eta dependence). See
+Figure~\ref{fig:mu-eta-vs-cov-4-4} for an example.
 
-These covariance matrix elements are extremely important for both the secondary track fits and for the primary vertex fit. They are important for the secondary track fits because the entire analysis relies on fitting these tracks within the CMSSW framework which uses the covariance matrix when fitting multiple tracks. Similarly, the primary vertex resolution is important as it is used to compute the B direction when computing all of the final observables (missing mass, etc.).
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{mu_eta_vs_cov_4_4.png}
+\caption{2D histogram showing the 4th covariance matrix element of the muon as a function of $\eta$ for MC (top) and data (bottom). As you can see there is a distinctive feature in the barrel region for the MC which is not at all present in the data.}
+\label{fig:mu-eta-vs-cov-4-4}
+\end{figure}
+
+These covariance matrix elements are extremely important for both the secondary
+track fits and for the primary vertex fit. They are important for the secondary
+track fits because the entire analysis relies on fitting these tracks within
+the CMSSW framework which uses the covariance matrix when fitting multiple
+tracks. Similarly, the primary vertex resolution is important as it is used to
+compute the B direction when computing all of the final observables (missing
+mass, etc.).
 
 Fundamentally, I believe the current approach of trying to fix these issues
 after the fact by applying corrections at the analysis level is wrong. Whatever
@@ -251,6 +274,7 @@ fundamental mismodelling of the detector in the Monte Carlo and because of the
 complex nature of how these variables enter the analysis (through complex fits
 of tracks) and so should be fixed at the simulation level and not papered over
 after the fact.
+
 \section{Primary Vertex Resolution}
 As mentioned in the previous section, there are noticeable differences in the
 covariance matrix between data and MC. In addition, there are obvious
@@ -272,7 +296,13 @@ primarily only have to apply a significant smearing in the z direction.
 The vertex resolution is extremely important, and in my opinion it is not the
 correct approach to try to fix a mismodelling of the radiation damage in the
 tracker by applying ad-hoc gaussian smearing after the fact. It clearly seems
-to help the fit a lot, but the complex effects of this mismodelling cannot be
-captured with a simple gaussian smearing.
+to help the fit a lot, but it's unlikely that the complex effects of this
+mismodelling cannot be captured with a simple gaussian smearing.
+
+\section{Mismodelling in the Plus Minus Control Region}
+It seems likely that there is at least one background in the control region
+with two tracks that are oppositely charged that we are not currently modeling.
+This is evident from two plots: the visible mass and the mass of the two extra
+tracks.
 
 \end{document}
