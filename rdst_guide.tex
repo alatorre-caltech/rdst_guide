@@ -1,17 +1,31 @@
 \documentclass[12pt]{article}
 \title{R(D*) Analysis Guide}
 \author{Anthony LaTorre}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily,
+  columns=fullflexible,
+  frame=none,
+  breaklines=true,
+  postbreak=\mbox{\textcolor{red}{$\hookrightarrow$}\space},
+}
+\usepackage{xcolor}
+\usepackage[framemethod=TikZ]{mdframed}
+\usepackage{fullpage}
+\definecolor{light-gray}{gray}{0.95} %the shade of grey that stack exchange uses
 \begin{document}
 \maketitle
 \begin{abstract}
 This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
 \end{abstract}
-\section{Introduction}
+\section{Software}
 The R(D*) analysis software consists of three repositories:
 \begin{enumerate}
-\item \href{BPH\_RD\_Analysis}{https://github.com/alatorre-caltech/BPH_RD_Analysis}
-\item \href{BPH\_RDntuplizer}{https://github.com/alatorre-caltech/BPH_RDntuplizer}
-\item \href{BPH\_CMSMCGen}{https://github.com/alatorre-caltech/BPH_CMSMCGen}
+\item \href{https://github.com/alatorre-caltech/BPH\_RD\_Analysis}{BPH\_RD\_Analysis}
+\item \href{https://github.com/alatorre-caltech/BPH\_RDntuplizer}{BPH\_RDntuplizer}
+\item \href{https://github.com/alatorre-caltech/BPH\_CMSMCGen}{BPH\_CMSMCGen}
 \end{enumerate}
 \subsection{BPH\_RD\_Analysis}
 The BPH\_RD\_Analysis contains the following scripts:
@@ -20,7 +34,51 @@ The BPH\_RD\_Analysis contains the following scripts:
 \item B2JpsiKst\_skimCAND\_v1.py which converts the ntuples for the calibration samples into ``skimmed'' data files
 \item generatorEfficiency.py which looks at the MiniAOD logs to produce text files which contain the efficiency of tagging a given sample. These efficiencies are used in the final fit when computing the overall normalization for each sample.
 \item triggerEfficiencies.py and triggerEfficienciesScaleFactors.py are used to compute the trigger efficiency corrections.
-\item kinematicCalibration_Bd_JpsiKst.py is used to compute the corrections for the B pT and extra track pT, etc. from the calibration sample
-\item forcedDecayChannelsFactors_v2.ipynb is used to calculate the normalization of the branching ratios for each sample based on what decays were forced in the MC card
+\item kinematicCalibration\_Bd\_JpsiKst.py is used to compute the corrections for the B pT and extra track pT, etc. from the calibration sample
+\item forcedDecayChannelsFactors\_v2.ipynb is used to calculate the normalization of the branching ratios for each sample based on what decays were forced in the MC card
 \end{itemize}
+\subsubsection{Running the Skimmer}
+To produce ``skimmed'' data files from the ntuples, you can run:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ python B2DstMu_skimCAND_v1.py -d '.*' --cat low
+$ python B2DstMu_skimCAND_v1.py -d '.*' --cat mid
+$ python B2DstMu_skimCAND_v1.py -d '.*' --cat high
+\end{lstlisting}
+\end{mdframed}
+Note that it's possible to run these three in parallel. To run the same for the calibration data:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ python B2JpsiKst_skimCAND_v1.py -d '.*' --cat low
+$ python B2JpsiKst_skimCAND_v1.py -d '.*' --cat mid
+$ python B2JpsiKst_skimCAND_v1.py -d '.*' --cat high
+\end{lstlisting}
+\end{mdframed}
+\subsubsection{Computing the Trigger Efficiency}
+To compute the trigger efficiencies for data and MC you can run:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ for t in "Mu7_IP4" "Mu9_IP6" "Mu12_IP6"; do ./triggerEfficiencies.py -v [version] -t $t -d RD --refIP BS; done
+$ for t in "Mu7_IP4" "Mu9_IP6" "Mu12_IP6"; do ./triggerEfficiencies.py -v [version] -t $t -d MC --refIP BS; done
+$ for t in "Mu7_IP4" "Mu9_IP6" "Mu12_IP6"; do ./triggerEfficienciesScaleFactors.py -v [version] -t $t --refIP BS; done
+\end{lstlisting}
+\end{mdframed}
+\subsubsection{Editing IPython Notebooks}
+To edit ipython notebooks from a remote server like login-2, it is necessary to do some port forwarding. Here is how I do it (for example: to modify forcedDecayChannelsFactors\_v2.ipynb).
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ ssh login-2.hep.caltech.edu
+$ cd RDstAnalysis/BPH_RD_Analysis/scripts
+$ jupyter-notebook --no-browser --port 1234
+\end{lstlisting}
+\end{mdframed}
+Then, on your local machine:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ ssh ssh -NL 1234:localhost:1234 login-2.hep.caltech.edu
+\end{lstlisting}
+\end{mdframed}
+Then you should be able to visit the link that the jupyter notebook gives you
+on your local machine.
+\subsection{BPH_RDntuplizer}
 \end{document}
