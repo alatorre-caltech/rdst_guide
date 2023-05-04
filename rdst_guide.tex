@@ -20,7 +20,13 @@
 \maketitle
 \tableofcontents
 \begin{abstract}
-This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
+This is a short document intended to provide an intro to the R(D*) analysis and
+talk about some of the current problems. Currently there are many
+disagreements between data and MC on very fundamental inputs to the analysis (like
+covariance matrices and primary vertex track fits). I believe the current
+approach of treating the upstream MC like a black box and trying to fix these
+issues with downstream corrections will not produce a reliable estimate of
+R(D*).
 \end{abstract}
 \chapter{Introduction}
 This document is intended to give a brief overview of the technical details of
@@ -320,6 +326,10 @@ Currently we actually apply a beamspot constraint at the ntuplization
 level\footnote{Not clear if this is a good idea due to the fact that the
 beamspot wandering is not actually simulated in MC.}, so that later we
 primarily only have to apply a significant smearing in the z direction.
+
+One current issue is that based on using the jacknife technique to estimate the
+PV error, it appeared that we only needed to add an extra 5 $\mu m$ of
+smearing. However, currently the fit wants to pull this closer to 15 $\mu m$.
 
 The vertex resolution is extremely important, and in my opinion it is not the
 correct approach to try to fix a mismodelling of the radiation damage in the
