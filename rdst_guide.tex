@@ -1,5 +1,5 @@
 \documentclass[12pt]{report}
-\title{R(D*) Analysis Guide}
+\title{R(D*) Analysis Guide and Thoughts}
 \author{Anthony LaTorre}
 \usepackage{hyperref}
 \usepackage{caption}
@@ -22,11 +22,10 @@
 \begin{abstract}
 This is a short document intended to provide an intro to the R(D*) analysis and
 talk about some of the current problems. Currently there are many
-disagreements between data and MC on very fundamental inputs to the analysis (like
-covariance matrices and primary vertex track fits). I believe the current
-approach of treating the upstream MC like a black box and trying to fix these
-issues with downstream corrections will not produce a reliable estimate of
-R(D*).
+disagreements between data and MC on very fundamental inputs to the analysis
+(like covariance matrices and primary vertex track fits). I believe the current
+approach of trying to fix upstream MC problems with downstream corrections for
+these will not produce a reliable estimate of R(D*).
 \end{abstract}
 \chapter{Introduction}
 This document is intended to give a brief overview of the technical details of
@@ -37,6 +36,58 @@ the overall analysis strategy:
 \item Analysis Note: \url{https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2019/162}
 \item Olmo's Thesis: \url{https://thesis.library.caltech.edu/15019/1/olmo_cerri_2023_thesis.pdf}
 \end{itemize}
+\section{History}
+This analysis was created by Olmo Cerri during his PhD. I started working on
+the analysis after it was at a very advanced stage (after an initial unblinding
+that was reblinded). Olmo and I worked on trying to fix issues with the fit for
+a year. During this period we made many improvements:
+\begin{itemize}
+\item added several new backgrounds
+\item added effects to account for event migration between bins
+\item try and correct for covariance matrix differences between data and MC
+\item relax p-value cuts since p-values for the track fits never agreed between data and MC
+\item investigate form factor pulling
+\item + many more
+\end{itemize}
+and since he graduated I have added a few more improvements (PV smearing being
+the most important).
+
+\section{General Thoughts on the Analysis and comparison to LHCB}
+I think the general approach to the analysis is very strong. The idea of doing
+a full multi-dimensional likelihood fit with the control regions fit
+simultaneously is a very good approach. The recent result from LHCB (see
+\url{https://indico.cern.ch/event/1187939/attachments/2530158/4355180/DTaunu_CERNSeminar.pdf})
+are very impressive in some respects but are not as rigorous as this analysis
+in several others. The most impressive part of the analysis I thought is that
+they did two independent analyses which agreed at the end. This is no small
+feat and I think should be the default for any precision physics analysis.
+
+However, there are several other things which are not as good. For example, on slide 34 they say that they:
+\begin{itemize}
+\item Reweight simulation to match data in control region (missing mass $<$ 0.4 GeV)
+\end{itemize}
+This is worrying because in principle they should be able to float the form
+factor for this decay to cover any disagreements in the kinematics of the $B^0
+\rightarrow D^* \mu \nu$ sample. If they have to reweight things in the low
+missing mass region which are not covered by the form factors, why doesn't that
+affect apply at higher missing mass where the signal will be?
+
+In the talk they say that they fit the form factor measurements without any
+priors from existing measurements, but don't actually compare the result to the
+existing measurements. This is something we've noticed in our fit (the form
+factors want to get pulled significantly away from the existing best fit
+value), and furthermore that the existing form factor measurements don't agree
+with each other (see
+\url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/master/scripts/plot_babar_belle.py}).
+
+If I understood from the talk correctly some of the backgrounds are fit with
+``data-driven'' background templates (could be misunderstanding on my part). If
+this is true, this seems worrying because the whole point of the background
+control regions is to be able to predict what will show up in the signal
+region. If you are using templates from data to correctly fit these background
+regions it is not clear how you then predict what will end up in the signal
+region.
+
 \chapter{Software}
 The R(D*) analysis software consists of three repositories:
 \begin{enumerate}
@@ -187,6 +238,7 @@ You can find more instructions on running the ntuplizer in the README at \url{ht
 \section{BPH\_RD\_Analysis}
 The BPH\_RD\_Analysis contains the following scripts:
 \begin{itemize}
+\item runCombine.py which does the final fit
 \item B2DstMu\_skimCAND\_v1.py which converts the ntuples for the normal B -> D* mu nu analysis into ``skimmed'' data files which are used as input to the final fit
 \item B2JpsiKst\_skimCAND\_v1.py which converts the ntuples for the calibration samples into ``skimmed'' data files
 \item generatorEfficiency.py which looks at the MiniAOD logs to produce text files which contain the efficiency of tagging a given sample. These efficiencies are used in the final fit when computing the overall normalization for each sample.
@@ -237,6 +289,22 @@ $ ssh ssh -NL 1234:localhost:1234 login-2.hep.caltech.edu
 \end{mdframed}
 Then you should be able to visit the link that the jupyter notebook gives you
 on your local machine.
+\subsection{Running the Fit}
+To run the fit:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ cd ~/RDstAnalysis/BPH_RD_Analysis/Combine
+$ ./runCombine.py -v [version] -c [category] -s [skim-tag] --submit
+\end{lstlisting}
+\end{mdframed}
+and it will be submitted to the cluster. Some important things to note are that
+by default the fit will use the ntuple tag specified here:
+\url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/e9d8ac7ec8585be1badd68e43c1c48aa11751005/lib/analysis_utilities.py#L18}.
+So if you reran the ntuplizer and created a new ntuple tag you will need to
+update this. The current tag includes a constraint on the PV fit to include the
+beamspot constraint. One idea is to rerun things without this constraint and
+see what effect it has on the fit.
+
 \section{BPH\_RDntuplizer}
 To make a change to the ntuplizer, you can edit the files in the plugins directory. The most imporant files are:
 \begin{itemize}
@@ -263,6 +331,24 @@ Next, to run the ntuplizer on all the data and MC on the Caltech Tier2 cluster:
 $ cd RDstAnalysis/CMSSW_10_2_3/src/ntuplizer/BPH_RDntuplizer/jobSubmission
 $ ./run-ntuplizer
 $ ./submit-condor-jobs --max-jobs 10000
+\end{lstlisting}
+\end{mdframed}
+\section{BPH\_CMSMCGen}
+All of the cards for the MC generation are in this repository. These cards can
+be found at
+\url{https://github.com/alatorre-caltech/BPH_CMSMCGen/tree/master/Configuration/GenProduction/python}.
+
+Other important files are
+\url{https://github.com/alatorre-caltech/BPH_CMSMCGen/blob/master/GeneratorInterface/EvtGenInterface/data/DECAY_2014_NOLONGLIFE.DEC}
+which contains all the known EvtGen decays and
+\url{https://github.com/alatorre-caltech/BPH_CMSMCGen/blob/master/GeneratorInterface/EvtGenInterface/data/evt_2014.pdl}
+which contains particle masses.
+\subsection{Running Private MC}
+To run a private MC, you need to create a new card and then ask Andres or Justas to open up 1000 cores on the normal queue. You can then submit these jobs using the \texttt{submit-condor-jobs} script:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ cd RDstAnalysis/CMSSW_10_2_3/src/ntuplizer/BPH_CMSMCGen
+$ ./submit-condor-jobs [name] -e [number of events per job] -j [number of jobs]
 \end{lstlisting}
 \end{mdframed}
 
