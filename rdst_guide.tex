@@ -232,6 +232,34 @@ $ ssh ssh -NL 1234:localhost:1234 login-2.hep.caltech.edu
 Then you should be able to visit the link that the jupyter notebook gives you
 on your local machine.
 \section{BPH\_RDntuplizer}
+To make a change to the ntuplizer, you can edit the files in the plugins directory. The most imporant files are:
+\begin{itemize}
+\item \href{https://github.com/alatorre-caltech/BPH_RDntuplizer/blob/master/plugins/B2DstMuDecayTreeProducer.cc}{B2DstMuDecayTreeProducer.cc}
+\item \href{https://github.com/alatorre-caltech/BPH_RDntuplizer/blob/master/plugins/VtxUtils.cc}{VtxUtils.cc}
+\end{itemize}
+The first file is where all the magic happens: the tracks in an event are
+sorted through and all possible combinations are combined to try to make a
+$\mathrm{D}^0$, $\mathrm{D}^*$, etc. The second file \texttt{VtxUtils.cc} is
+where a lot of utility functions are.
+\subsection{Compiling}
+Once you have made a change you need to recompile:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+Singularity> cd RDstAnalysis/CMSSW_10_2_3/src/ntuplizer/BPH_RDntuplizer
+Singularity> cmsenv
+Singularity> scram b -j12
+\end{lstlisting}
+\end{mdframed}
+
+Next, to run the ntuplizer on all the data and MC on the Caltech Tier2 cluster:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ cd RDstAnalysis/CMSSW_10_2_3/src/ntuplizer/BPH_RDntuplizer/jobSubmission
+$ ./run-ntuplizer
+$ ./submit-condor-jobs --max-jobs 10000
+\end{lstlisting}
+\end{mdframed}
+
 \chapter{Current Problems}
 \section{Covariance Matrices}
 We discovered that the covariance matrices for all the tracks making up both
@@ -305,4 +333,104 @@ with two tracks that are oppositely charged that we are not currently modeling.
 This is evident from two plots: the visible mass and the mass of the two extra
 tracks.
 
+\section{Beamspot Calibration}
+The beamspot in all of the MC assumes the beam is travelling exactly in the
+center of the CMS detector. However, in actual data the beamspot wanders
+throughout a run. Furthermore, there are some differences in the beamspot shape
+between data and MC (specifically, beamspot tilts are not simulated in MC). For
+more information about this talk to Riccardo Manzoni.
+
+Here, I think we never had the time to fully explore whether this was a
+significant issue. There was a beamspot calibration weighting scheme created
+(see
+\url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/master/analysis/beamSpotCalibration_v1.ipynb}),
+however it seemed to be strongly correlated with the B pT calibration and it
+was never clear whether it was actually doing what we thought and so was
+abandoned.
+
+\section{Smaller Issues}
+There are a lot of smaller issues that need to be looked into once the larger issues like the covariance matrices and primary vertex resolution are solved. In this section I will describe these issues.
+\subsection{Event Migration}
+Originally in the Combine fit, there was no way for events to migrate between
+control regions. This wasn't correct since when the systematic for the track
+efficiency is moved that will cause events to migrate between control regions.
+The correct way to do this is to take a given track efficiency curve and then
+apply weights for that event to move between control regions. For example, if
+an event ends up in the plus control region (one positive extra track) with an
+extra track pT of 1 GeV, and then the systematic for the track efficiency at 1
+GeV moves to 80\%, then the event should be given a weight of 80\% in the one
+track control region and a weight of 20\% in the signal region.
+
+However, to do this correctly would have been very difficult with the existing
+structure of the fit. The two problems are that the events are stored in
+different files and dataframes depending on whether they are signal or control
+regions throughout the fit and second that the fit was only designed to give
+each event a single weight (and not move them around). Therefore, a complex
+approach that was hoped to capture most of the issues was implemented but which
+is not quite right. In this case we duplicate all the events in the dataset
+(necessary because the entire runCombine.py assumes events do not move) and
+move them to the control region they would be if they dropped the lowest pt
+extra track. In other words, for events in the PM control region, if the plus
+track is the lowest pt, then it would be duplicated and the duplicate copy
+would be put in the minus control region. Then we do apply the weights
+procedure discussed previously but only for the extra track with the lowest pt.
+
+This did improve the fit at the time, but it still fails to capture some
+potentially important features. For example, if you have an event in the PM
+control region and both tracks are very low energy, it is possible for that
+event to end up in the signal region, but with the current scheme that is not
+possible.
+
+Although it would be a lot of work, I think it would be better to update
+runCombine.py to not assume that all systematics are given by simple weights
+and that some can be given by a rebinning of all the events. This was actually
+partially implemented here:
+\url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/e9d8ac7ec8585be1badd68e43c1c48aa11751005/Combine/runCombine.py#L285}
+for the PV resolution which cannot be done simply with weights since you are
+adding random numbers to the primary vertex. But this partial implementation is
+kind of ad-hoc and it might be better to simplify it.
+\subsection{Correlation of Systematics}
+There are a \emph{lot} of corrections applied to the MC to correct for various
+data/MC disagreements. A partial list is here:
+\begin{itemize}
+\item Covariance matrix of all tracks
+\item PV resolution
+\item B pT weights
+\item B eta weights
+\item Additional track pT weights
+\item Number of pileup tracks
+\item Number of additional tracks from PV
+\item Low pT track efficiency
+\item Trigger scale factor weights
+\item Muon ID scale factor weights
+\end{itemize}
+Although many of these are likely independent, some of them almost certainly
+are not. For example the low pt track efficiency, the additional track pt
+weights, and the PV resolution are all likely the result of a mismodelling of
+the tracker.
+
+Right now the fit assumes all the systematics are completely uncorrelated, but
+since that's not true, these issues either need to be fixed upstream in the MC
+so that the systematics are negligible or the correlation needs to be accounted
+for in the fit.
+\subsection{Random Tracks from the PV}
+Currently the model for floating the number of additional tracks from the PV
+assumes a Poisson distribution. However, this is not obvious whether it should
+be and some preliminary checks suggest it is not. This should be modelled
+correctly.
+\subsection{Form Factors for $\mathrm{D}^{**}$ Decays}
+Michele Papucci, the author of the Hammer library, created some code to
+estimate form factor corrections for the doubly excited D states. However, this
+code was never actually published in the repository and only existed in Olmo's
+home directory, so I have not been running with these form factors in the fit.
+When I last talked to Michele he was positive about publishing these so that
+they could be used by anyone, but I haven't followed up on that.
+\subsection{Central Values for Pulled Systematics}
+For some backgrounds which aren't well known the fit may pull them by several
+standard deviations. Since Combine does not actually know what happens beyond 1
+sigma (you only provide +1 sigma and -1 sigma histograms), these systematics
+should be recomputed and you should give Combine the histogram for whatever
+sigma it is currently fitting at. For example, if Combine wants to pull some
+parameter to +2 sigma, we should instead provide +2 sigma and -2 sigma
+histograms to Combine.
 \end{document}
