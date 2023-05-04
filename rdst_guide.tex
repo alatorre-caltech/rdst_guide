@@ -1,4 +1,4 @@
-\documentclass[12pt]{article}
+\documentclass[12pt]{report}
 \title{R(D*) Analysis Guide}
 \author{Anthony LaTorre}
 \usepackage{hyperref}
@@ -17,6 +17,7 @@
 \definecolor{light-gray}{gray}{0.95} %the shade of grey that stack exchange uses
 \begin{document}
 \maketitle
+\tableofcontents
 \begin{abstract}
 This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
 \end{abstract}
@@ -27,6 +28,103 @@ The R(D*) analysis software consists of three repositories:
 \item \href{https://github.com/alatorre-caltech/BPH\_RDntuplizer}{BPH\_RDntuplizer}
 \item \href{https://github.com/alatorre-caltech/BPH\_CMSMCGen}{BPH\_CMSMCGen}
 \end{enumerate}
+\subsection{Getting Started}
+Before running any of the software it is necessary to set up your environment.
+These instructions will assume you are running things on the Caltech Tier2
+login nodes, but the instructions should be similar for any computer.
+
+First, we are going to set up a container that will run RHEL7 since that is
+what the software was developed on\footnote{I'm not actually sure if there is
+any good reason to have everything running under RHEL7. It makes a lot of
+things much more painful, and so if everything can compile and give identical
+results under Alma Linux 8 that would be much much better.}.
+
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ mkdir ~/bin
+$ echo "export PATH=$HOME/bin:$PATH" >> ~/.bash_profile
+$ echo "source /cvmfs/cms.cern.ch/cmsset_default.sh" >> ~/.bash_profile
+$ source ~/.bash_profile
+$ cp `which cmssw-cc7` ~/bin
+\end{lstlisting}
+\end{mdframed}
+
+Then, edit the file \texttt{~/bin/cmssw-cc7} and add the following line:
+
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+SINGULARITY_BINDPATH=$SINGULARITY_BINDPATH,/storage/:/storage/
+\end{lstlisting}
+\end{mdframed}
+
+just before the last line, i.e.
+
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+[...]
+SINGULARITY_BINDPATH=$SINGULARITY_BINDPATH,/storage/:/storage/
+singularity -s exec ${SINGULARITY_OPTS} $UNPACKED_IMAGE sh -c "${CMD_TO_RUN[@]}"
+\end{lstlisting}
+\end{mdframed}
+
+Now we can create the main directory that everything will be put under, and
+create the CMSSW environments needed:
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+$ cd
+$ cmssw-cc7
+Singularity> source /cvmfs/cms.cern.ch/cmsset_default.sh
+Singularity> mkdir RDstAnalysis
+Singularity> cd RDstAnalysis
+Singularity> export SCRAM_ARCH=slc7_amd64_gcc700
+Singularity> cmsrel CMSSW_10_2_3  # For the ntuplizer
+Singularity> cmsrel CMSSW_10_2_13 # For combine
+Singularity> # Now, we get out of the container and set up a final environment for when we
+Singularity> # don't need to run anything platform specific
+Singularity> exit
+$ cd ~/RDstAnalysis
+$ export SCRAM_ARCH=cc8_amd64_gcc9
+$ cmsrel CMSSW_11_2_0
+\end{lstlisting}
+\end{mdframed}
+It is important to use the exact same directory structure since this is assumed
+in much of the code.
+
+First, we are going to add some basic stuff to our .bashrc so that we have
+access to the CMS programs, etc. every time we log in. To do so add the
+following to your .bashrc when you log in:
+
+\begin{mdframed}[backgroundcolor=light-gray, roundcorner=10pt,leftmargin=1, rightmargin=1, innerleftmargin=15, innertopmargin=15,innerbottommargin=15, outerlinewidth=1, linecolor=light-gray,roundcorner=20pt]
+\begin{lstlisting}
+ulimit -s unlimited
+
+PATH=$HOME/bin:$PATH:$HOME/.local/bin
+
+export PATH
+export EDITOR=vim
+
+export HISTFILESIZE=
+export HISTSIZE=
+
+if [[ $- == *i* ]]; then
+    source /cvmfs/cms.cern.ch/cmsset_default.sh
+    export X509_USER_CERT=$HOME/.globus/usercert.pem
+    export X509_USER_KEY=$HOME/.globus/private/userkey.pem
+    export X509_USER_PROXY=/tmp/x509up_u${EUID}
+    export PATH=/cvmfs/sft.cern.ch/lcg/contrib/CMake/3.14.2/Linux-x86_64/bin:${PATH}
+    export BOOST_ROOT=/cvmfs/sft.cern.ch/lcg/releases/Boost/1.66.0-f50b5/x86_64-centos7-gcc7-opt/
+    export HEPMC_DIR=/cvmfs/sft.cern.ch/lcg/external/HepMC/2.06.08/x86_64-slc6-gcc48-opt
+    cd $HOME/RDstAnalysis/CMSSW_11_2_0/
+    eval `scramv1 runtime -sh`
+    source $HOME/RDstAnalysis/BPH_RD_Analysis/env.sh
+    cd -
+fi
+
+\end{lstlisting}
+\end{mdframed}
+
+\subsubsection{Installing the ntuplizer}
+
 \subsection{BPH\_RD\_Analysis}
 The BPH\_RD\_Analysis contains the following scripts:
 \begin{itemize}
@@ -80,5 +178,5 @@ $ ssh ssh -NL 1234:localhost:1234 login-2.hep.caltech.edu
 \end{mdframed}
 Then you should be able to visit the link that the jupyter notebook gives you
 on your local machine.
-\subsection{BPH_RDntuplizer}
+\subsection{BPH\_RDntuplizer}
 \end{document}
