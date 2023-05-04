@@ -57,12 +57,13 @@ I think the general approach to the analysis is very strong. The idea of doing
 a full multi-dimensional likelihood fit with the control regions fit
 simultaneously is a very good approach. The recent result from LHCB (see
 \url{https://indico.cern.ch/event/1187939/attachments/2530158/4355180/DTaunu_CERNSeminar.pdf})
-are very impressive in some respects but are not as rigorous as this analysis
-in several others. The most impressive part of the analysis I thought is that
-they did two independent analyses which agreed at the end. This is no small
-feat and I think should be the default for any precision physics analysis.
+is very impressive in some aspects but are not as rigorous as this analysis in
+several others. The most impressive part of the LHCB analysis is that they did
+two independent analyses which agreed at the end. This is no small feat and I
+think should be the default for any precision physics analysis.
 
-However, there are several other things which are not as good. For example, on slide 34 they say that they:
+However, there are several other things which are not as good. For example, on
+slide 34 they say that they:
 \begin{itemize}
 \item Reweight simulation to match data in control region (missing mass $<$ 0.4 GeV)
 \end{itemize}
@@ -70,14 +71,15 @@ This is worrying because in principle they should be able to float the form
 factor for this decay to cover any disagreements in the kinematics of the $B^0
 \rightarrow D^* \mu \nu$ sample. If they have to reweight things in the low
 missing mass region which are not covered by the form factors, why doesn't that
-affect apply at higher missing mass where the signal will be?
+effect apply at higher missing mass where the signal will be?
 
 In the talk they say that they fit the form factor measurements without any
 priors from existing measurements, but don't actually compare the result to the
-existing measurements. This is something we've noticed in our fit (the form
-factors want to get pulled significantly away from the existing best fit
-value), and furthermore that the existing form factor measurements don't agree
-with each other (see
+existing measurements. We've noticed in our fit that the form
+factors want to get pulled significantly away from the existing best fit value
+(although this is most likely due to PV mismodelling issues). Furthermore we
+found that the existing form factor measurements don't agree with each other
+(see
 \url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/master/scripts/plot_babar_belle.py}).
 
 If I understood from the talk correctly some of the backgrounds are fit with
@@ -305,6 +307,10 @@ update this. The current tag includes a constraint on the PV fit to include the
 beamspot constraint. One idea is to rerun things without this constraint and
 see what effect it has on the fit.
 
+Once the fit is finished it should put all the results in your public web
+folder. For example:
+\url{https://login-1.hep.caltech.edu/~alatorre/BPH_RDst/Combine/}.
+
 \section{BPH\_RDntuplizer}
 To make a change to the ntuplizer, you can edit the files in the plugins directory. The most imporant files are:
 \begin{itemize}
@@ -353,6 +359,43 @@ $ ./submit-condor-jobs [name] -e [number of events per job] -j [number of jobs]
 \end{mdframed}
 
 \chapter{Current Problems}
+\section{Speed of Iteration}
+This is not directly a physics problem, but to rerun each stage of the analysis takes a long time. The approximate times are:
+
+\begin{enumerate}
+\item Ntuples - approximately 1 month with 1000 cores
+\item Skimmer - approximately 1 day with a few hundred cores
+\item Fit - a few hours
+\end{enumerate}
+
+Initially the idea was that the ntuple stage would only ever have to be run
+once and all subsequent cuts would be applied at the skimmer stage. However,
+due to several discrepancies between data and MC discussed in this chapter, it
+was necessary to rerun the ntuples. Each time this takes a month and makes the
+feedback loop between change and seeing the results \emph{very} slow. I think
+all the low hanging fruit to speed things up here are already done, but there
+may be some clever way to speed things up that we missed.
+
+The skimmer also takes a significant amount of time. Although 1 day does not
+seem like a long time, it makes testing small changes very time consuming. I
+did some back of the envelope math and determined that it could almost
+certainly be made 10x faster by rewriting it in C instead of python. This is
+not a small undertaking as it is fairly complex and it would need to be shown
+that it produces identical output to the python script. However, if I were to
+start working on this analysis this is one of the first things I would do since
+it will greatly improve the feedback cycle.
+
+The fit only takes a few hours which is by far the smallest amount of time, but
+even that makes testing quick hypotheses hard. Ideally you would like to make a
+small change and get feedback within a few minutes. I think this can also be
+solved. We already added some code to cache loading the ROOT files to pandas
+dataframes which sped things up significantly. The current bottleneck is
+computing the trigger efficiency scale factors and the muon ID scale factors.
+The reason these are so slow is that they are computed in a giant python for
+loop because ROOT 2D histograms do not have a way to evaulate multiple bins at
+the same time. This can be rather easily solved by converting them to numpy
+arrays and using scipy's interpolation routines.
+
 \section{Covariance Matrices}
 We discovered that the covariance matrices for all the tracks making up both
 the secondary tracks from the B decay and the primary vertex tracks do not
