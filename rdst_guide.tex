@@ -3,4 +3,24 @@
 \author{Anthony LaTorre}
 \begin{document}
 \maketitle
+\begin{abstract}
+This is a short document intended to provide an intro to the R(D*) analysis and talk about some of the current problems.
+\end{abstract}
+\section{Introduction}
+The R(D*) analysis software consists of three repositories:
+\begin{enumerate}
+\item \href{BPH\_RD\_Analysis}{https://github.com/alatorre-caltech/BPH_RD_Analysis}
+\item \href{BPH\_RDntuplizer}{https://github.com/alatorre-caltech/BPH_RDntuplizer}
+\item \href{BPH\_CMSMCGen}{https://github.com/alatorre-caltech/BPH_CMSMCGen}
+\end{enumerate}
+\subsection{BPH\_RD\_Analysis}
+The BPH\_RD\_Analysis contains the following scripts:
+\begin{itemize}
+\item B2DstMu\_skimCAND\_v1.py which converts the ntuples for the normal B -> D* mu nu analysis into ``skimmed'' data files which are used as input to the final fit
+\item B2JpsiKst\_skimCAND\_v1.py which converts the ntuples for the calibration samples into ``skimmed'' data files
+\item generatorEfficiency.py which looks at the MiniAOD logs to produce text files which contain the efficiency of tagging a given sample. These efficiencies are used in the final fit when computing the overall normalization for each sample.
+\item triggerEfficiencies.py and triggerEfficienciesScaleFactors.py are used to compute the trigger efficiency corrections.
+\item kinematicCalibration_Bd_JpsiKst.py is used to compute the corrections for the B pT and extra track pT, etc. from the calibration sample
+\item forcedDecayChannelsFactors_v2.ipynb is used to calculate the normalization of the branching ratios for each sample based on what decays were forced in the MC card
+\end{itemize}
 \end{document}
