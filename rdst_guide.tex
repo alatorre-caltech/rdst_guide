@@ -251,5 +251,28 @@ fundamental mismodelling of the detector in the Monte Carlo and because of the
 complex nature of how these variables enter the analysis (through complex fits
 of tracks) and so should be fixed at the simulation level and not papered over
 after the fact.
+\section{Primary Vertex Resolution}
+As mentioned in the previous section, there are noticeable differences in the
+covariance matrix between data and MC. In addition, there are obvious
+differences in the primary vertex fit. If you look at the chi-squared and
+number of degrees of freedom for this fit you find that these distributions do
+not at all agree between data and MC, and this is important since the primary
+vertex is used to compute all the final observables.
+
+The current hypothesis is that these problems are caused by a mismodelling of
+the radiation damage in the first pixel layer of the tracker. We have currently
+tried to take this into account by adding a Gaussian smearing on the x, y, and
+z coordinate of the primary vertex fit in MC. You can see that here:
+\url{https://github.com/alatorre-caltech/BPH_RD_Analysis/blob/e9d8ac7ec8585be1badd68e43c1c48aa11751005/scripts/B2DstMu_skimCAND_v1.py#L268}.
+Currently we actually apply a beamspot constraint at the ntuplization
+level\footnote{Not clear if this is a good idea due to the fact that the
+beamspot wandering is not actually simulated in MC.}, so that later we
+primarily only have to apply a significant smearing in the z direction.
+
+The vertex resolution is extremely important, and in my opinion it is not the
+correct approach to try to fix a mismodelling of the radiation damage in the
+tracker by applying ad-hoc gaussian smearing after the fact. It clearly seems
+to help the fit a lot, but the complex effects of this mismodelling cannot be
+captured with a simple gaussian smearing.
 
 \end{document}
